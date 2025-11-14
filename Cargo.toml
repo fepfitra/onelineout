@@ -13,3 +13,4 @@ categories = ["command-line-utilities"]
 authors = ["fepfitra <fitra.fep@gmail.com>"]
 
 [dependencies]
+atty = "0.2"
