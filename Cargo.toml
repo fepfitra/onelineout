@@ -1,6 +1,6 @@
 [package]
 name = "onelineout"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 description = "Print piped input lines and update the terminal line using carriage return (\\r)."
 license = "MIT OR Apache-2.0"
