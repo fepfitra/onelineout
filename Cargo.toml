@@ -12,5 +12,16 @@ keywords = ["stdout", "pipe", "terminal", "oneline", "carriage-return"]
 categories = ["command-line-utilities"]
 authors = ["fepfitra <fitra.fep@gmail.com>"]
 
+[package.metadata.wix]
+upgrade-guid = "9AC679E6-2273-4A12-BDEE-225006C390B7"
+path-guid = "EB921B53-D60F-4294-97EA-9ED38E27D20B"
+license = false
+eula = false
+
 [dependencies]
 atty = "0.2"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
