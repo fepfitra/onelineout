@@ -69,19 +69,12 @@ fn main() -> io::Result<()> {
 
             if let Some(marker) = &skip_at {
                 if line.contains(marker) {
-                    // keep previously printed line visible, move to next line
                     writeln!(stdout)?;
                     stdout.flush()?;
                     prev_len = 0;
                     continue;
                 }
             }
-
-            // if line.trim().is_empty() {
-            //     writeln!(stdout, "{}", line)?;
-            //     prev_len = 0;
-            //     continue;
-            // }
 
             let len = line.chars().count();
 
@@ -99,6 +92,7 @@ fn main() -> io::Result<()> {
 
         return Ok(());
     }
+    //for testing release
 
     let mut buffer: Vec<String> = Vec::with_capacity(lines);
     let mut prev_widths: Vec<usize> = Vec::new();
@@ -110,10 +104,8 @@ fn main() -> io::Result<()> {
         if let Some(marker) = &skip_at {
             if line.contains(marker) {
                 if printed_count > 0 {
-                    // move cursor up to the start of the previously printed block
                     write!(stdout, "\x1B[{}A", printed_count)?;
 
-                    // overwrite each previous line with spaces and newline to clear it
                     for i in 0..printed_count {
                         let prev_w = prev_widths.get(i).copied().unwrap_or(0);
                         write!(stdout, "{}\n", " ".repeat(prev_w))?;
@@ -170,38 +162,53 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-// --- Test-only simulation logic ---------------------------------------------------------
-// This simulation models the logical buffering behavior without ANSI cursor movement or
-// carriage-return overwrites. It allows unit tests to validate core semantics.
 #[cfg(test)]
 fn simulate(input: &[&str], lines: usize, skip_at: Option<&str>) -> Vec<String> {
     let mut output: Vec<String> = Vec::new();
-    if lines == 0 { return output; }
+    if lines == 0 {
+        return output;
+    }
 
     if lines == 1 {
         let mut current: Option<String> = None;
         for &raw in input {
-            if let Some(marker) = skip_at { if raw.contains(marker) { // keep previous, start new section
-                if let Some(ref c) = current { output.push(c.clone()); }
-                output.push(String::from("")); // section separator blank line
-                current = None; continue; } }
+            if let Some(marker) = skip_at {
+                if raw.contains(marker) {
+                    if let Some(ref c) = current {
+                        output.push(c.clone());
+                    }
+                    output.push(String::from(""));
+                    current = None;
+                    continue;
+                }
+            }
             current = Some(raw.to_string());
         }
-        if let Some(c) = current { output.push(c); }
+        if let Some(c) = current {
+            output.push(c);
+        }
         return output;
     }
 
-    // lines > 1 rolling window with skip reset
     let mut buffer: Vec<String> = Vec::new();
     for &raw in input {
-        if let Some(marker) = skip_at { if raw.contains(marker) { // flush current buffer to output, separator, reset
-            if !buffer.is_empty() { output.extend(buffer.drain(..)); }
-            output.push(String::from(""));
-            continue; } }
+        if let Some(marker) = skip_at {
+            if raw.contains(marker) {
+                if !buffer.is_empty() {
+                    output.extend(buffer.drain(..));
+                }
+                output.push(String::from(""));
+                continue;
+            }
+        }
         buffer.push(raw.to_string());
-        if buffer.len() > lines { buffer.remove(0); }
+        if buffer.len() > lines {
+            buffer.remove(0);
+        }
     }
-    if !buffer.is_empty() { output.extend(buffer.into_iter()); }
+    if !buffer.is_empty() {
+        output.extend(buffer.into_iter());
+    }
     output
 }
 
@@ -213,39 +220,34 @@ mod tests {
     fn single_line_overwrite_basic() {
         let input = ["aaaaaa", "bbb", "cccccccc", "ddd"];
         let out = simulate(&input, 1, None);
-        // Expect only final line kept (previous overwritten), no separators
         assert_eq!(out, vec!["ddd"]);
     }
 
     #[test]
     fn single_line_with_skip_marker() {
-        let input = ["first", "second", "MARK", "third", "fourth"]; 
+        let input = ["first", "second", "MARK", "third", "fourth"];
         let out = simulate(&input, 1, Some("MARK"));
-        // Before marker we keep last visible ("second"), then separator blank line, then final overwrite result "fourth"
         assert_eq!(out, vec!["second", "", "fourth"]);
     }
 
     #[test]
     fn rolling_window_basic() {
-        let input = ["L1", "L2", "L3", "L4", "L5"]; 
+        let input = ["L1", "L2", "L3", "L4", "L5"];
         let out = simulate(&input, 3, None);
-        // Final buffer should contain last 3 lines
         assert_eq!(out, vec!["L3", "L4", "L5"]);
     }
 
     #[test]
     fn rolling_window_with_skip() {
-        let input = ["A1", "A2", "A3", "SKIP", "B1", "B2"]; 
+        let input = ["A1", "A2", "A3", "SKIP", "B1", "B2"];
         let out = simulate(&input, 3, Some("SKIP"));
-        // Buffer before skip flushed (last 3 lines: A1,A2,A3), then separator blank line, then final buffer (B1,B2)
         assert_eq!(out, vec!["A1", "A2", "A3", "", "B1", "B2"]);
     }
 
     #[test]
     fn rolling_window_multiple_skips() {
-        let input = ["X1", "X2", "SKIP", "Y1", "Y2", "Y3", "Y4", "SKIP", "Z1"]; 
+        let input = ["X1", "X2", "SKIP", "Y1", "Y2", "Y3", "Y4", "SKIP", "Z1"];
         let out = simulate(&input, 2, Some("SKIP"));
-        // Explanation: before first skip buffer ends with X1,X2 then separator; before second skip buffer ends with last two of Y*: Y3,Y4 then separator; final buffer Z1
         assert_eq!(out, vec!["X1", "X2", "", "Y3", "Y4", "", "Z1"]);
     }
 }
